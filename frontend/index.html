@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TerraShift AI — agricultural adaptation intelligence</title>
+<link rel="preconnect" href="https://unpkg.com" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="mark">TS</div>
+    <div>
+      <h1>TerraShift <span>AI</span></h1>
+      <p>NASA-powered crop-rotation and climate-adaptation intelligence</p>
+    </div>
+  </div>
+
+  <div class="topbar-actions">
+    <label class="field inline">
+      <span>Farm</span>
+      <select id="farmSelect"><option value="">No farm selected</option></select>
+    </label>
+    <button class="btn ghost" id="newFarmBtn" type="button">New farm</button>
+    <button class="btn" id="reloadBtn" type="button">Re-run analysis</button>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs" aria-label="Sections">
+  <button class="tab active" data-view="map">01 · Intelligence map</button>
+  <button class="tab" data-view="climate">02 · Climate stress</button>
+  <button class="tab" data-view="profile">03 · Soil &amp; crop</button>
+  <button class="tab" data-view="rotations">04 · Rotation simulator</button>
+  <button class="tab" data-view="whatif">05 · What-if planner</button>
+  <button class="tab" data-view="report">06 · Adaptation report</button>
+</nav>
+
+<div id="banner" class="banner hidden"></div>
+
+<main>
+
+  <!-- 01 MAP -->
+  <section class="view active" id="view-map">
+    <div class="view-head">
+      <div>
+        <h2>Farm intelligence map</h2>
+        <p class="muted" id="mapSubtitle">Select or create a farm to load NASA observation layers.</p>
+      </div>
+      <div class="chips" id="mapSourceChips"></div>
+    </div>
+
+    <div class="onboard" id="onboard">
+      <h3>Start with a working farm profile</h3>
+      <p class="muted">Real coordinates, different climates and constraints. Nothing is pre-computed; every card runs the live engine.</p>
+      <div class="demo-grid" id="demoGrid"></div>
+      <p class="small muted">Or open <button class="linkbtn" data-goto="profile">Soil &amp; crop profile</button> and enter a farm manually.</p>
+    </div>
+
+    <div class="map-wrap" id="mapWrap">
+      <div id="map"></div>
+      <div class="layer-panel" id="layerPanel">
+        <h4>NASA GIBS layers</h4>
+        <div id="layerToggles"></div>
+        <p class="small muted" id="layerNote">Layers are rendered imagery from NASA GIBS, not farm measurements.</p>
+      </div>
+      <div class="map-stats" id="mapStats"></div>
+    </div>
+
+    <div class="grid-3" id="mapKpis"></div>
+  </section>
+
+  <!-- 02 CLIMATE -->
+  <section class="view" id="view-climate">
+    <div class="view-head">
+      <div>
+        <h2>Climate stress assessment</h2>
+        <p class="muted">Observed history compared with a multi-year baseline for the same calendar window.</p>
+      </div>
+      <span class="badge" id="climateConfidence">—</span>
+    </div>
+
+    <div class="grid-4" id="climateKpis"></div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-head"><h3>Annual rainfall and temperature</h3><span class="small muted">Complete years only</span></div>
+        <div id="annualChart" class="chart"></div>
+        <p class="small muted" id="trendText"></p>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Monthly climatology</h3><span class="small muted">Mean monthly rainfall</span></div>
+        <div id="monthlyChart" class="chart"></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <div class="card-head"><h3>Stress signals</h3><span class="small muted">Evidence, not prediction</span></div>
+        <div id="stressList" class="stack"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Vegetation condition</h3><span class="badge warn" id="proxyBadge">proxy — not NDVI</span></div>
+        <div id="proxyDetail"></div>
+        <p class="small muted" id="proxyNote"></p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3>Forecast</h3><span class="small muted" id="forecastProvider"></span></div>
+      <div id="forecastPanel"></div>
+    </div>
+  </section>
+
+  <!-- 03 PROFILE -->
+  <section class="view" id="view-profile">
+    <div class="view-head">
+      <div>
+        <h2>Soil &amp; crop profile</h2>
+        <p class="muted">Measured values are used where supplied. Missing values are penalised, never invented.</p>
+      </div>
+      <span class="badge" id="profileMode">new farm</span>
+    </div>
+
+    <form id="farmForm" class="card form-grid">
+      <label class="field"><span>Farm name</span><input name="name" required placeholder="Karnataka rain-fed farm" /></label>
+      <label class="field"><span>Country</span><input name="country" placeholder="India" /></label>
+      <label class="field"><span>Region</span><input name="region" placeholder="Karnataka" /></label>
+      <label class="field"><span>Area (ha)</span><input name="area_ha" type="number" step="0.1" min="0.1" placeholder="2.0" /></label>
+
+      <label class="field"><span>Latitude</span><input name="latitude" type="number" step="0.0001" min="-90" max="90" required placeholder="13.34" /></label>
+      <label class="field"><span>Longitude</span><input name="longitude" type="number" step="0.0001" min="-180" max="180" required placeholder="77.10" /></label>
+      <label class="field"><span>Soil texture</span>
+        <select name="soil_texture">
+          <option value="sand">Sand</option>
+          <option value="loamy sand">Loamy sand</option>
+          <option value="sandy loam">Sandy loam</option>
+          <option value="loam" selected>Loam</option>
+          <option value="silt loam">Silt loam</option>
+          <option value="clay loam">Clay loam</option>
+          <option value="clay">Clay</option>
+        </select>
+      </label>
+      <label class="field"><span>Soil pH <em>if measured</em></span><input name="soil_ph" type="number" step="0.1" min="3" max="10" placeholder="6.4" /></label>
+
+      <label class="field"><span>Organic carbon (%) <em>if measured</em></span><input name="organic_carbon_pct" type="number" step="0.1" min="0" max="20" placeholder="0.6" /></label>
+      <label class="field"><span>Irrigation</span>
+        <select name="irrigation">
+          <option value="rainfed">Rain-fed only</option>
+          <option value="limited">Limited</option>
+          <option value="supplemental">Supplemental</option>
+          <option value="full">Full irrigation</option>
+        </select>
+      </label>
+      <label class="field"><span>Current crop</span><select name="current_crop" id="currentCropSelect"></select></label>
+      <label class="field"><span>Farmer priority</span>
+        <select name="priority">
+          <option value="balanced">Balanced</option>
+          <option value="water">Water conservation</option>
+          <option value="soil">Soil recovery</option>
+          <option value="profit">Profitability</option>
+          <option value="resilience">Climate resilience</option>
+        </select>
+      </label>
+
+      <label class="field span2"><span>Previous crops <em>comma separated</em></span><input name="previous_crops" placeholder="maize, finger_millet" /></label>
+      <label class="field span2"><span>Preferred crops <em>comma separated, used by the priority criterion</em></span><input name="preferred_crops" placeholder="maize, chickpea" /></label>
+
+      <div class="form-actions span4">
+        <button class="btn" type="submit" id="saveFarmBtn">Save profile &amp; run engine</button>
+        <span class="small muted">Crop ids are validated against the catalogue in <code>GET /api/crops</code>.</span>
+      </div>
+    </form>
+
+    <div class="card">
+      <div class="card-head"><h3>Supported crops</h3><span class="small muted" id="cropCount"></span></div>
+      <div id="cropChips" class="chips"></div>
+      <p class="small muted">Indicative reference parameters, not calibrated for this farm. Full table: <a href="/api/crops" target="_blank">/api/crops</a>.</p>
+    </div>
+  </section>
+
+  <!-- 04 ROTATIONS -->
+  <section class="view" id="view-rotations">
+    <div class="view-head">
+      <div>
+        <h2>Crop rotation simulator</h2>
+        <p class="muted">Deterministic scoring. The language model explains the result; it never sets a score.</p>
+      </div>
+      <div class="chips" id="weightChips"></div>
+    </div>
+
+    <div id="rotationWinner"></div>
+    <div class="rotation-list" id="rotationList"></div>
+
+    <div class="card">
+      <div class="card-head"><h3>How the score is calculated</h3><span class="small muted">Transparent arithmetic</span></div>
+      <div id="scoreExplainer"></div>
+    </div>
+  </section>
+
+  <!-- 05 WHAT IF -->
+  <section class="view" id="view-whatif">
+    <div class="view-head">
+      <div>
+        <h2>What-if scenario planner</h2>
+        <p class="muted">Only declared inputs change. The scoring rules never do.</p>
+      </div>
+      <button class="btn" id="simulateBtn" type="button" disabled>Run scenario</button>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <div class="card-head"><h3>Scenario inputs</h3></div>
+        <label class="field"><span>Rainfall change: <strong id="rainValue">0%</strong></span>
+          <input type="range" id="rainSlider" min="-50" max="40" step="5" value="0" />
+        </label>
+        <label class="field"><span>Irrigation availability</span>
+          <select id="simIrrigation">
+            <option value="">Unchanged</option>
+            <option value="rainfed">Rain-fed only</option>
+            <option value="limited">Limited</option>
+            <option value="supplemental">Supplemental</option>
+            <option value="full">Full irrigation</option>
+          </select>
+        </label>
+        <label class="field"><span>Farmer priority</span>
+          <select id="simPriority">
+            <option value="">Unchanged</option>
+            <option value="balanced">Balanced</option>
+            <option value="water">Water conservation</option>
+            <option value="soil">Soil recovery</option>
+            <option value="profit">Profitability</option>
+            <option value="resilience">Climate resilience</option>
+          </select>
+        </label>
+        <p class="small muted">Example: −15% rainfall shifts water-limited sequences down and drought-tolerant crops up.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>Impact on scores</h3><span class="small muted" id="simInterpretation"></span></div>
+        <div id="simResults"><p class="muted">Run a scenario to compare against the current ranking.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 REPORT -->
+  <section class="view" id="view-report">
+    <div class="view-head">
+      <div>
+        <h2>AI farm adaptation report</h2>
+        <p class="muted">Assembled from computed results. Numbers in the narrative are validated against the engine output.</p>
+      </div>
+      <div class="chips">
+        <button class="btn ghost" id="buildReportBtn" type="button">Build report</button>
+        <a class="btn" id="printReportLink" href="#" target="_blank" rel="noopener">Printable report</a>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <div class="card-head"><h3>Narrative</h3><span class="badge" id="explanationProvider">not generated</span></div>
+        <div id="reportNarrative"><p class="muted">Build the report to generate a grounded explanation.</p></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Evidence</h3><span class="small muted">Kept separate by design</span></div>
+        <div id="reportEvidence"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3>Research context</h3><span class="small muted" id="researchProvider"></span></div>
+      <div id="researchResults"></div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <span>TerraShift AI · decision-support prototype · not a substitute for local agronomic advice</span>
+  <span><a href="/docs" target="_blank" rel="noopener">API docs</a> · <a href="/health" target="_blank" rel="noopener">health</a></span>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>TerraShift AI — Adaptation Report — {{ farm.name }}</title>
+<style>
+  :root { --ink:#16221c; --muted:#5c6b63; --line:#d9e2dc; --accent:#1f7a4d; --warn:#a8541c; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:36px 44px 60px; font-family:"Segoe UI",system-ui,-apple-system,sans-serif; color:var(--ink); background:#fff; line-height:1.5; font-size:13px; }
+  h1 { font-size:26px; margin:0 0 4px; letter-spacing:-0.4px; }
+  h2 { font-size:15px; text-transform:uppercase; letter-spacing:1.1px; margin:32px 0 10px; padding-bottom:6px; border-bottom:2px solid var(--line); color:var(--accent); }
+  h3 { font-size:14px; margin:18px 0 6px; }
+  .sub { color:var(--muted); margin:0 0 18px; }
+  .banner { border:1px solid #e7c9ae; background:#fdf6ef; padding:10px 14px; border-radius:8px; color:var(--warn); font-size:12px; margin-bottom:18px; }
+  .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  .stat { border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+  .stat .k { font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); }
+  .stat .v { font-size:18px; font-weight:600; margin-top:2px; }
+  table { width:100%; border-collapse:collapse; margin:8px 0 6px; }
+  th, td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; background:#eef5f0; color:var(--accent); border:1px solid #cfe3d7; }
+  .pill.high { background:#fdeeec; color:#a12f22; border-color:#f3cdc7; }
+  .pill.medium { background:#fdf3e6; color:#a8541c; border-color:#f0d9bd; }
+  .winner { border:1px solid #cfe3d7; background:#f6fbf8; border-radius:10px; padding:16px 18px; }
+  .score { font-size:32px; font-weight:700; color:var(--accent); line-height:1; }
+  .cols { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  ul { margin:6px 0 6px 18px; padding:0; }
+  li { margin:3px 0; }
+  .small { font-size:11.5px; color:var(--muted); }
+  .narrative p { margin:0 0 10px; }
+  .foot { margin-top:36px; padding-top:12px; border-top:1px solid var(--line); font-size:11px; color:var(--muted); }
+  .mono { font-family:ui-monospace,Consolas,monospace; font-size:11.5px; }
+  @media print { body { padding:14mm; font-size:11px; } h2 { page-break-after:avoid; } .winner { page-break-inside:avoid; } }
+</style>
+</head>
+<body>
+
+<h1>TerraShift AI — Farm Adaptation Report</h1>
+<p class="sub">{{ farm.name }}{% if farm.region %} · {{ farm.region }}{% endif %}{% if farm.country %}, {{ farm.country }}{% endif %} · generated {{ report.generated_at }}</p>
+
+{% if analysis.synthetic %}
+<div class="banner"><strong>Synthetic data in use.</strong> NASA POWER was unreachable, so this report uses a locally generated fallback series. It must not be treated as observation. Reason: {{ analysis.synthetic_reason }}</div>
+{% endif %}
+
+<h2>Farm profile</h2>
+<div class="grid">
+  <div class="stat"><div class="k">Location</div><div class="v">{{ '%.3f'|format(farm.latitude) }}, {{ '%.3f'|format(farm.longitude) }}</div></div>
+  <div class="stat"><div class="k">Soil / pH</div><div class="v">{{ farm.soil_texture }}{% if farm.soil_ph %} · {{ farm.soil_ph }}{% endif %}</div></div>
+  <div class="stat"><div class="k">Irrigation</div><div class="v">{{ farm.irrigation }}</div></div>
+  <div class="stat"><div class="k">Priority</div><div class="v">{{ farm.priority }}</div></div>
+</div>
+<p class="small" style="margin-top:10px">Current crop: {{ farm.current_crop }} · Previous: {{ farm.previous_crops|join(', ') or '—' }} · Preferred: {{ farm.preferred_crops|join(', ') or '—' }} · Area: {{ farm.area_ha or '—' }} ha · Organic carbon: {{ farm.organic_carbon_pct or 'not supplied' }}{% if farm.organic_carbon_pct %} %{% endif %}</p>
+
+<h2>Climate evidence (observed)</h2>
+<div class="grid">
+  <div class="stat"><div class="k">Mean annual rainfall</div><div class="v">{{ analysis.baseline.annual_rain_mm or '—' }} mm</div></div>
+  <div class="stat"><div class="k">Mean temperature</div><div class="v">{{ analysis.baseline.annual_mean_t2m_c or '—' }} °C</div></div>
+  <div class="stat"><div class="k">Last 90 days rainfall vs baseline</div><div class="v">{{ analysis.anomalies.rain_90d_pct if analysis.anomalies.rain_90d_pct is not none else '—' }}{% if analysis.anomalies.rain_90d_pct is not none %} %{% endif %}</div></div>
+  <div class="stat"><div class="k">Baseline years used</div><div class="v">{{ analysis.baseline.years }}</div></div>
+</div>
+
+{% if analysis.stress.flags %}
+<h3>Climate stress signals</h3>
+<table>
+  <tr><th>Signal</th><th>Severity</th><th>Observed</th><th>Historical comparison</th></tr>
+  {% for flag in analysis.stress.flags %}
+  <tr>
+    <td>{{ flag.type.replace('_',' ') }}</td>
+    <td><span class="pill {{ flag.severity }}">{{ flag.severity }}</span></td>
+    <td>{{ flag.observed }}</td>
+    <td>{{ flag.baseline }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+
+<p class="small">
+Trends over {{ analysis.trends.years_used }} complete years:
+rainfall {{ analysis.trends.rain_mm_per_decade if analysis.trends.rain_mm_per_decade is not none else '—' }} mm/decade,
+temperature {{ analysis.trends.t2m_c_per_decade if analysis.trends.t2m_c_per_decade is not none else '—' }} °C/decade,
+days above 35 °C {{ analysis.trends.heat_days_35_per_year if analysis.trends.heat_days_35_per_year is not none else '—' }} per year.
+Source: {{ analysis.data_source }}; gridded regional data, not an on-farm measurement.
+</p>
+
+<h2>Recommended rotation</h2>
+<div class="winner">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:20px;">
+    <div>
+      <h3 style="margin-top:0">{{ winner.label }}</h3>
+      <p style="margin:4px 0 0; font-size:15px;">{{ winner.sequence_names | join(' → ') }}</p>
+      <p class="small" style="margin:6px 0 0">Confidence: <span class="pill {{ winner.confidence }}">{{ winner.confidence }}</span> · Rank 1 of {{ rotation.rotations|length }}</p>
+    </div>
+    <div style="text-align:right">
+      <div class="score">{{ winner.score }}</div>
+      <div class="small">suitability / 100</div>
+    </div>
+  </div>
+</div>
+
+<table>
+  <tr><th>Criterion</th><th class="num">Score</th><th class="num">Weight</th><th class="num">Data quality</th><th>Explanation</th></tr>
+  {% for key, c in winner.criteria.items() %}
+  <tr>
+    <td>{{ c.label }}</td>
+    <td class="num">{{ c.score }}</td>
+    <td class="num">{{ (c.weight * 100) | round(0) | int }}%</td>
+    <td class="num">{{ (c.data_quality * 100) | round(0) | int }}%</td>
+    <td class="small">{{ c.explanation }}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+<div class="cols">
+  <div>
+    <h3>Benefits</h3>
+    <ul>{% for item in winner.benefits %}<li>{{ item }}</li>{% endfor %}</ul>
+  </div>
+  <div>
+    <h3>Concerns to manage</h3>
+    <ul>{% for item in winner.concerns %}<li>{{ item }}</li>{% else %}<li>No specific concerns detected from available inputs.</li>{% endfor %}</ul>
+  </div>
+</div>
+
+<h2>All candidate rotations</h2>
+<table>
+  <tr><th>Rank</th><th>Strategy</th><th>Sequence</th><th class="num">Score</th><th>Confidence</th><th>Main constraint</th></tr>
+  {% for r in rotation.rotations %}
+  <tr>
+    <td>{{ r.rank }}</td>
+    <td>{{ r.label }}</td>
+    <td>{{ r.sequence_names | join(' → ') }}</td>
+    <td class="num">{{ r.score }}</td>
+    <td><span class="pill {{ r.confidence }}">{{ r.confidence }}</span></td>
+    <td class="small">{% set weakest = r.criteria.values() | sort(attribute='score') | first %}{{ weakest.label }} ({{ weakest.score }})</td>
+  </tr>
+  {% endfor %}
+</table>
+
+<h2>Interpretation</h2>
+<div class="narrative">
+  {% for paragraph in explanation.text.split('\n\n') %}<p>{{ paragraph }}</p>{% endfor %}
+</div>
+<p class="small">Explanation provider: {{ explanation.provider }}{% if explanation.note %} — {{ explanation.note }}{% endif %}</p>
+
+<h2>Research context</h2>
+{% if research.available and research.results %}
+<ul>
+  {% for item in research.results %}
+  <li><a href="{{ item.url }}">{{ item.title }}</a>{% if item.trusted_domain %} <span class="pill">authoritative domain</span>{% endif %}<br /><span class="small">{{ item.snippet }}</span></li>
+  {% endfor %}
+</ul>
+<p class="small">{{ research.note }}</p>
+{% else %}
+<p class="small">{{ research.reason or 'No research provider configured.' }} {{ research.note or '' }}</p>
+<ul>{% for source in research.suggested_sources %}<li><strong>{{ source.name }}</strong> — {{ source.use }}</li>{% endfor %}</ul>
+{% endif %}
+
+<h2>Assumptions and limitations</h2>
+<ul class="small">
+  <li><strong>Scoring weights</strong> are {{ (weights.water * 100) | round(0) | int }}% water, {{ (weights.climate * 100) | round(0) | int }}% climate, {{ (weights.soil * 100) | round(0) | int }}% soil and nutrients, {{ (weights.pest * 100) | round(0) | int }}% pest break, {{ (weights.preference * 100) | round(0) | int }}% farmer priorities. {{ rotation.weight_note }}</li>
+  <li><strong>Water accounting</strong> uses 10-year monthly rainfall for each crop's planting window, {{ (rotation.context.effective_rain_fraction * 100) | round(0) | int }}% assumed effective, plus {{ rotation.context.irrigation_assumptions_mm_per_cycle }} mm of applied irrigation per crop cycle for the '{{ rotation.context.irrigation }}' setting.</li>
+  <li><strong>Crop parameters</strong> are indicative reference ranges, not calibrated for this farm. {{ rotation.crop_parameter_provenance }}</li>
+  <li><strong>Evidence types are kept separate:</strong> observations ({{ analysis.evidence.observed.source }}), forecasts ({{ analysis.evidence.forecast.source }}), and research-backed guidance ({{ analysis.evidence.research.source }}).</li>
+  <li><strong>Not predicted:</strong> yield, income, or measured changes in soil health.</li>
+  <li><strong>Missing data:</strong> {{ analysis.data_quality.notes | join(' ') }}</li>
+</ul>
+
+<div class="foot">
+  {{ rotation.disclaimer }} This report is not a substitute for local agronomic advice. Generated by TerraShift AI {{ report.rotation.context.start_date }}.
+</div>
+
+</body>
+</html>

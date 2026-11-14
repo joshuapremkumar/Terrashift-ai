@@ -1,0 +1,37 @@
+# --- Secrets ---------------------------------------------------------------
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+
+# --- Python ---------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# --- Local data and caches ------------------------------------------------
+*.db
+*.sqlite
+*.sqlite3
+backend/.cache/
+terrashift_data/
+
+# --- OS / editor ----------------------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# --- Scratch outputs ------------------------------------------------------
+rep.html
+rep.json
+rot*.json
+sim.json
+*.log

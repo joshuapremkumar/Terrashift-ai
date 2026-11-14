@@ -1,0 +1,32 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: terrashift
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-before-deploying}
+      POSTGRES_DB: terrashift
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U terrashift -d terrashift"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql+psycopg://terrashift:${POSTGRES_PASSWORD:-change-me-before-deploying}@db:5432/terrashift
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
