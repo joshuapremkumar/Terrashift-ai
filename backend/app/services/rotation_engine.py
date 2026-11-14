@@ -562,6 +562,115 @@ def _preference_criterion(
     }, text
 
 
+def _compute_trade_offs(
+    schedule: list[dict],
+    context: dict,
+    water_detail: dict,
+    soil_detail: dict,
+    pest_detail: dict,
+    pref_detail: dict,
+) -> dict:
+    """Compute structured trade-offs for the rotation sequence."""
+    gains: list[dict] = []
+    losses: list[dict] = []
+    
+    # 1. Water Trade-offs
+    water_rows = water_detail.get("rows", [])
+    low_water_crops = [row for row in water_rows if row.get("ratio") is not None and row["ratio"] < 0.8]
+    high_water_crops = [row for row in water_rows if row.get("ratio") is not None and row["ratio"] >= 1.0]
+    
+    if low_water_crops:
+        losses.append({
+            "type": "water_deficit",
+            "severity": "high" if any(row["ratio"] < 0.5 for row in low_water_crops) else "medium",
+            "crops": [row["crop"] for row in low_water_crops],
+            "detail": "Some crops are expected to receive less than 80% of their indicative water need."
+        })
+        
+    if high_water_crops:
+        gains.append({
+            "type": "water_surplus",
+            "severity": "low",
+            "crops": [row["crop"] for row in high_water_crops],
+            "detail": "Some crops have a water surplus, which may support higher yield potential or allow for fallow periods."
+        })
+
+    # 2. Soil/Nutrient Trade-offs
+    soil_rows = soil_detail.get("rows", [])
+    legume_crops = [row["crop"] for row in soil_rows if row.get("nitrogen_adjust", 0) > 0]
+    heavy_feeders = [row["crop"] for row in soil_rows if row.get("carbon_adjust", 0) < 0]
+    
+    if legume_crops:
+        gains.append({
+            "type": "nitrogen_fixation",
+            "severity": "medium",
+            "crops": legume_crops,
+            "detail": "Legumes in the rotation fix atmospheric nitrogen, reducing fertilizer requirements for subsequent crops."
+        })
+        
+    if heavy_feeders:
+        losses.append({
+            "type": "nutrient_depletion",
+            "severity": "medium",
+            "crops": heavy_feeders,
+            "detail": "Heavy feeder crops may deplete soil organic carbon if not balanced with legumes or organic inputs."
+        })
+
+    # 3. Pest/Disease Trade-offs
+    pest_notes = pest_detail.get("notes", [])
+    family_break = any("alternates crop families" in note for note in pest_notes)
+    monoculture_risk = any("repeated" in note or "follows itself" in note for note in pest_notes)
+    
+    if family_break:
+        gains.append({
+            "type": "pest_break",
+            "severity": "medium",
+            "crops": [],
+            "detail": "Alternating crop families helps break pest and disease cycles."
+        })
+        
+    if monoculture_risk:
+        losses.append({
+            "type": "monoculture_risk",
+            "severity": "high",
+            "crops": [],
+            "detail": "Repeating the same crop or family increases the risk of soil-borne pests and diseases."
+        })
+
+    # 4. Economic/Preference Trade-offs
+    pref_alignment = pref_detail.get("alignment", 0)
+    preferred_match = pref_detail.get("preferred_match", 0)
+    
+    if pref_alignment > 70:
+        gains.append({
+            "type": "priority_alignment",
+            "severity": "medium",
+            "crops": [],
+            "detail": f"The rotation aligns well ({pref_alignment:.0f}/100) with the farmer's stated priority."
+        })
+    elif pref_alignment < 40:
+        losses.append({
+            "type": "priority_misalignment",
+            "severity": "medium",
+            "crops": [],
+            "detail": f"The rotation has low alignment ({pref_alignment:.0f}/100) with the farmer's stated priority."
+        })
+
+    if preferred_match > 50:
+        gains.append({
+            "type": "preferred_crop_inclusion",
+            "severity": "low",
+            "crops": [],
+            "detail": "The rotation includes a significant proportion of the farmer's preferred crops."
+        })
+
+    return {
+        "gains": gains,
+        "losses": losses,
+        "summary": "Structured trade-offs between water, soil, pest, and economic factors."
+    }
+
+
 def _crop_flags(schedule: list[dict], soil_ph: float | None, irrigation: str) -> list[dict]:
     flags: list[dict] = []
     ids = [entry["crop"]["id"] for entry in schedule]
@@ -789,6 +898,15 @@ def score_sequence(
             "and groundwater are not modelled."
         )
 
+    trade_offs = _compute_trade_offs(
+        schedule,
+        context,
+        water_detail,
+        soil_detail,
+        pest_detail,
+        pref_detail,
+    )
+
     return {
         "id": rotation_id or "-".join(crop["id"] for crop in sequence),
         "label": label or "Custom rotation",
@@ -814,6 +932,7 @@ def score_sequence(
         "flags": flags,
         "benefits": benefits,
         "concerns": concerns,
+        "trade_offs": trade_offs,
         "water_budget": {
             "indicative_need_mm": round(water_need, 0),
             "irrigation_assumption_mm_per_cycle": IRRIGATION_MM_PER_CYCLE[context["irrigation"]],
