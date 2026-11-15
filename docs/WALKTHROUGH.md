@@ -1,4 +1,4 @@
-# TerraShift AI — demo script
+# TerraShift AI — prototype walkthrough
 
 **Format:** 6–7 minutes live, solo presenter. Target: NASA Space Apps judges.
 **Open before you start:** <http://127.0.0.1:8000>, one browser tab, font size up, no dev tools.
@@ -14,7 +14,7 @@
 
 ## 1. The map — “here is a real farm, not a mock-up” (45 s)
 
-1. The landing tab shows the four demo farms.
+1. The landing tab shows the four sample farms.
 2. Click **Karnataka rain-fed smallholding**.
 3. Point at the map: farm pin, NASA GIBS imagery layer, observed climate KPIs.
 
@@ -154,8 +154,8 @@ limitations.
 ## Fallback plan
 
 - If NASA POWER is slow: the cache usually answers instantly after the first run. Warm the
-  four demo farms before presenting.
-- If the network is unavailable: the flagged synthetic fallback keeps the demo alive; say
+  four sample farms before presenting.
+- If the network is unavailable: the flagged synthetic fallback keeps the walkthrough running; say
   clearly that it is synthetic.
 - If the browser fails: the print-ready report at `/api/farms/{id}/report` is a complete
   fallback artefact.

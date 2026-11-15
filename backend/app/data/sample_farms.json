@@ -1,5 +1,5 @@
 {
-  "note": "Demo profiles used to show that the same engine adapts to very different climates and constraints. Coordinates are real locations, not surveyed farm boundaries.",
+  "note": "Sample profiles used to show that the same engine adapts to very different climates and constraints. Coordinates are real locations, not surveyed farm boundaries.",
   "farms": [
     {
       "key": "karnataka",

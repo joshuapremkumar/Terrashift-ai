@@ -4,7 +4,7 @@ const state = {
   config: null,
   crops: [],
   cropMap: {},
-  demoFarms: [],
+  sampleFarms: [],
   farms: [],
   farm: null,
   analysis: null,
@@ -100,19 +100,19 @@ async function init() {
 
   setBusy(true, "Connecting to TerraShift AI…");
   try {
-    const [config, crops, demos, farms] = await Promise.all([
+    const [config, crops, samples, farms] = await Promise.all([
       api("/api/config"),
       api("/api/crops"),
-      api("/api/demo-farms"),
+      api("/api/sample-farms"),
       api("/api/farms"),
     ]);
     state.config = config;
     state.crops = crops.crops;
     crops.crops.forEach((crop) => { state.cropMap[crop.id] = crop; });
-    state.demoFarms = demos.farms;
+    state.sampleFarms = samples.farms;
     state.farms = farms;
 
-    renderDemoCards();
+    renderSampleCards();
     renderCropCatalogue();
     populateCropSelect();
     renderFarmSelect();
@@ -214,15 +214,15 @@ async function newFarm() {
   $("#farmForm").elements.name.focus();
 }
 
-/* --------------------------------------------------------------- demo cards */
+/* -------------------------------------------------------------- sample cards */
 
-function renderDemoCards() {
-  const grid = $("#demoGrid");
-  grid.innerHTML = state.demoFarms
+function renderSampleCards() {
+  const grid = $("#sampleGrid");
+  grid.innerHTML = state.sampleFarms
     .map(
       (farm) => `
-      <button class="demo-card" type="button" data-demo="${esc(farm.key)}">
-        <h4>${esc(farm.region || farm.country || "Demo")}</h4>
+      <button class="sample-card" type="button" data-sample="${esc(farm.key)}">
+        <h4>${esc(farm.region || farm.country || "Sample")}</h4>
         <strong>${esc(farm.name)}</strong>
         <span>${esc(farm.description)}</span>
         <div class="meta">${esc(farm.irrigation)} · ${esc(farm.soil_texture)} · ${esc(cropName(farm.current_crop))} · priority ${esc(farm.priority)}</div>
@@ -230,18 +230,18 @@ function renderDemoCards() {
     )
     .join("");
 
-  $$("[data-demo]").forEach((button) =>
+  $$("[data-sample]").forEach((button) =>
     button.addEventListener("click", async () => {
-      const demo = state.demoFarms.find((farm) => farm.key === button.dataset.demo);
-      if (!demo) return;
+      const sample = state.sampleFarms.find((farm) => farm.key === button.dataset.sample);
+      if (!sample) return;
       setBusy(true, "Creating farm profile…");
       try {
-        const { key, description, ...payload } = demo;
+        const { key, description, ...payload } = sample;
         const created = await api("/api/farms", { method: "POST", body: JSON.stringify(payload) });
         state.farms.unshift(created);
         await selectFarm(created.id);
       } catch (error) {
-        showBanner(`Could not create the demo farm: ${error.message}`, "error", true);
+        showBanner(`Could not create the sample farm: ${error.message}`, "error", true);
       } finally {
         setBusy(false);
       }

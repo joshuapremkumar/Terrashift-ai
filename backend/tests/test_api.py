@@ -103,8 +103,8 @@ def test_validation_rejects_bad_coordinates(client) -> None:
     assert response.status_code == 422
 
 
-def test_demo_farms_available(client) -> None:
-    response = client.get("/api/demo-farms")
+def test_sample_farms_available(client) -> None:
+    response = client.get("/api/sample-farms")
     assert response.status_code == 200
     keys = {farm["key"] for farm in response.json()["farms"]}
     assert {"karnataka", "iowa", "machakos", "punjab"} <= keys

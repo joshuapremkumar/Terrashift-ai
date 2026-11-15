@@ -11,7 +11,7 @@ from ..config import settings
 
 router = APIRouter(tags=["meta"])
 
-DEMO_FILE = Path(__file__).resolve().parent.parent / "data" / "demo_farms.json"
+SAMPLE_FILE = Path(__file__).resolve().parent.parent / "data" / "sample_farms.json"
 
 
 @router.get("/api/config")
@@ -48,10 +48,10 @@ def clear_cache() -> dict:
     return {"cleared": True}
 
 
-@router.get("/api/demo-farms")
-def demo_farms() -> JSONResponse:
-    """Ready-made farm profiles that demonstrate global range and different constraints."""
-    payload = json.loads(DEMO_FILE.read_text(encoding="utf-8"))
+@router.get("/api/sample-farms")
+def sample_farms() -> JSONResponse:
+    """Ready-made farm profiles that show global range and different constraints."""
+    payload = json.loads(SAMPLE_FILE.read_text(encoding="utf-8"))
     payload["generated"] = date.today().isoformat()
     return JSONResponse(payload)
 

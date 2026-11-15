@@ -1,6 +1,6 @@
 """In-process cache with TTL and on-disk persistence.
 
-Every external provider call goes through this layer so a demo never repeats a
+Every external provider call goes through this layer so a prototype run never repeats a
 slow request and so repeated analyses stay cheap and reproducible.
 """
 from __future__ import annotations

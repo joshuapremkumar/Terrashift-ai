@@ -147,16 +147,16 @@ input[type="range"] { padding: 0; }
   border: 1px dashed var(--line-strong); background: #fbfdfb; border-radius: var(--radius);
   padding: 20px 22px; margin-bottom: 16px;
 }
-.demo-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 14px 0 10px; }
-.demo-card {
+.sample-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 14px 0 10px; }
+.sample-card {
   text-align: left; border: 1px solid var(--line); background: #fff; border-radius: 10px;
   padding: 13px 14px; cursor: pointer; font: inherit; transition: border-color 0.15s, transform 0.15s;
 }
-.demo-card:hover { border-color: var(--accent); transform: translateY(-1px); }
-.demo-card h4 { color: var(--accent-dark); font-size: 11px; margin-bottom: 4px; }
-.demo-card strong { display: block; font-size: 13.5px; margin-bottom: 3px; }
-.demo-card span { font-size: 11.5px; color: var(--muted); display: block; }
-.demo-card .meta { margin-top: 8px; font-size: 11px; color: #7d8b84; }
+.sample-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+.sample-card h4 { color: var(--accent-dark); font-size: 11px; margin-bottom: 4px; }
+.sample-card strong { display: block; font-size: 13.5px; margin-bottom: 3px; }
+.sample-card span { font-size: 11.5px; color: var(--muted); display: block; }
+.sample-card .meta { margin-top: 8px; font-size: 11px; color: #7d8b84; }
 
 /* ---------- map ---------- */
 .map-wrap { position: relative; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); box-shadow: var(--shadow); margin-bottom: 16px; }
@@ -273,7 +273,7 @@ input[type="range"] { padding: 0; }
 }
 
 @media (max-width: 1050px) {
-  .grid-4, .demo-grid { grid-template-columns: repeat(2, 1fr); }
+  .grid-4, .sample-grid { grid-template-columns: repeat(2, 1fr); }
   .form-grid { grid-template-columns: repeat(2, 1fr); }
   .span4 { grid-column: span 2; }
   .two-col { grid-template-columns: 1fr; }
@@ -282,7 +282,7 @@ input[type="range"] { padding: 0; }
   .topbar { flex-direction: column; align-items: flex-start; padding: 12px 16px; }
   .tabs { padding: 8px 16px 0; }
   main { padding: 16px 16px 30px; }
-  .grid-3, .grid-4, .demo-grid, .form-grid { grid-template-columns: 1fr; }
+  .grid-3, .grid-4, .sample-grid, .form-grid { grid-template-columns: 1fr; }
   .span2, .span4 { grid-column: span 1; }
   .layer-panel { width: 190px; }
   #map { height: 380px; }

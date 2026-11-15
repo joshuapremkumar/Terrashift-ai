@@ -952,7 +952,7 @@ def score_sequence(
             "Includes lower-water-demand crops (" + ", ".join(crop["name"] for crop in low_water) + ")."
         )
     if not benefits:
-        benefits.append("No specific agronomic benefit is demonstrated by this sequence.")
+        benefits.append("No specific agronomic benefit is shown by this sequence.")
 
     high_need = [entry["crop"] for entry in schedule if entry["crop"]["water_need_mm"] >= 900]
     if high_need:

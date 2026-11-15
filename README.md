@@ -14,7 +14,7 @@ engine's output. A language model may explain the result; it can never invent or
 
 ---
 
-## What the demo does
+## What the prototype does
 
 | Tab | What it shows |
 | --- | --- |
@@ -25,7 +25,7 @@ engine's output. A language model may explain the result; it can never invent or
 | **05 · What-if planner** | Change rainfall, irrigation or farmer priority and see how the ranking moves. |
 | **06 · Adaptation report** | Grounded narrative, evidence table, research panel and a print-ready HTML report. |
 
-Four demo farms ship with the app: **Karnataka (India)**, **Iowa (USA)**,
+Four sample farms ship with the app: **Karnataka (India)**, **Iowa (USA)**,
 **Machakos (Kenya)** and **Punjab (India)**. They are real coordinates, different climates
 and different constraints. Nothing is pre-computed — each card runs the live engine.
 
@@ -97,7 +97,7 @@ the date/input coercion layer, and the HTTP API. They do not call live providers
 
 ## Provider matrix
 
-| Capability | Primary source | Fallback | Credentials | Demo state |
+| Capability | Primary source | Fallback | Credentials | Status |
 | --- | --- | --- | --- | --- |
 | Historical climate | **NASA POWER** daily point API | Synthetic, clearly flagged | None | Live |
 | Satellite imagery | **NASA GIBS** WMTS tiles | — | None | Live |
@@ -193,7 +193,7 @@ and cool-season cereals are not proposed as drought options in warm climates.
 | `GET` | `/api` | Endpoint index |
 | `GET` | `/api/config` | Safe runtime configuration |
 | `GET` | `/api/crops` | Crop catalogue and provenance |
-| `GET` | `/api/demo-farms` | Demo farm presets |
+| `GET` | `/api/sample-farms` | Sample farm presets |
 | `POST` | `/api/farms` | Create a farm |
 | `GET` | `/api/farms` | List farms |
 | `GET` | `/api/farms/{id}` | Read a farm |
@@ -279,7 +279,7 @@ and the rejection is reported in the response metadata.
 - Terminate TLS with a reverse proxy (Caddy, nginx) or Vultr's load balancer.
 - `/health` is container-ready for liveness probes.
 - Farm data is stored in the configured database; the provider cache is disposable.
-- SQLite is fine for the demo; PostgreSQL is recommended for concurrent use.
+- SQLite is fine for a prototype; PostgreSQL is recommended for concurrent use.
 
 ---
 
@@ -289,7 +289,7 @@ and the rejection is reported in the response metadata.
 backend/
   app/
     api/            FastAPI routers (farms, analysis, weather, satellite, rotations, reports, meta)
-    data/           crop_knowledge.json, demo_farms.json
+    data/           crop_knowledge.json, sample_farms.json
     models/         SQLAlchemy Farm model
     schemas/        Pydantic request/response models
     services/       NASA POWER, Meteomatics, GIBS, climate analysis, rotation engine,
@@ -300,7 +300,7 @@ backend/
     main.py         app factory, static frontend, /health
   tests/            pytest suite
 frontend/           index.html, app.js, styles.css (no build step)
-docs/DEMO_SCRIPT.md demo flow and judge-facing notes
+docs/WALKTHROUGH.md  prototype walkthrough and reviewer notes
 Dockerfile
 docker-compose.yml
 ```
@@ -334,5 +334,5 @@ docker-compose.yml
 - Tavily: <https://tavily.com/>
 - Vultr Serverless Inference: <https://www.vultr.com/products/serverless-inference/>
 
-Built for the NASA Space Apps Challenge 2026 as a same-day, solo, globally demonstrable
+Built for the NASA Space Apps Challenge 2026 as a same-day, solo, globally reproducible
 prototype.
