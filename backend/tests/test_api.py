@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+from datetime import date
 from pathlib import Path
 
 _TMP_DB = Path(tempfile.gettempdir()) / "terrashift_test.db"
@@ -14,6 +15,7 @@ import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.main import app  # noqa: E402
+from app.api import rotations as rotations_api  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -106,3 +108,115 @@ def test_demo_farms_available(client) -> None:
     assert response.status_code == 200
     keys = {farm["key"] for farm in response.json()["farms"]}
     assert {"karnataka", "iowa", "machakos", "punjab"} <= keys
+
+
+SEQUENCE_CONTEXT = {
+    "start_date": "2026-06-01",
+    "monthly_rain": {
+        "1": 2, "2": 3, "3": 8, "4": 25, "5": 60, "6": 120,
+        "7": 150, "8": 140, "9": 90, "10": 45, "11": 15, "12": 4,
+    },
+    "irrigation": "rainfed",
+    "soil_texture": "loam",
+    "soil_ph": 6.4,
+    "priority": "water",
+}
+
+
+def test_rotation_score_accepts_iso_start_date(client) -> None:
+    response = client.post(
+        "/api/rotation/score",
+        json={"sequence_ids": ["maize", "chickpea", "pearl_millet"], "context": SEQUENCE_CONTEXT},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["context_used"]["start_date"] == "2026-06-01"
+    assert 0 <= body["score"] <= 100
+    assert set(body["trade_offs"]) == {"gains", "losses", "summary"}
+    assert date.fromisoformat(body["schedule"][0]["planting"]) >= date(2026, 6, 1)
+
+
+def test_rotation_plural_alias_resolves(client) -> None:
+    singular = client.post(
+        "/api/rotation/score",
+        json={"sequence_ids": ["maize", "chickpea"], "context": SEQUENCE_CONTEXT},
+    )
+    plural = client.post(
+        "/api/rotations/score",
+        json={"sequence_ids": ["maize", "chickpea"], "context": SEQUENCE_CONTEXT},
+    )
+    assert singular.status_code == 200
+    assert plural.status_code == 200
+    assert singular.json()["score"] == plural.json()["score"]
+
+
+def test_rotation_score_rejects_unknown_crop(client) -> None:
+    response = client.post(
+        "/api/rotation/score",
+        json={"sequence_ids": ["dragonfruit"], "context": SEQUENCE_CONTEXT},
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"]["unknown"] == ["dragonfruit"]
+
+
+def test_rotation_score_rejects_bad_start_date(client) -> None:
+    response = client.post(
+        "/api/rotation/score",
+        json={"sequence_ids": ["maize"], "context": {"start_date": "not-a-date"}},
+    )
+    assert response.status_code == 422
+    assert "start_date" in response.text
+
+
+SAMPLE_ANALYSIS = {
+    "data_source": "NASA POWER",
+    "synthetic": False,
+    "monthly_climatology": [
+        {"month": month, "rain_mm": rain, "mean_t2m_c": 24.0}
+        for month, rain in enumerate(
+            [2, 3, 8, 25, 60, 120, 150, 140, 90, 45, 15, 4], start=1
+        )
+    ],
+    "baseline": {"annual_rain_mm": 662.0, "annual_mean_t2m_c": 24.0},
+    "windows": {"recent_90d": {"heat_days_35": 40}},
+    "anomalies": {"rain_90d_pct": -22.0},
+    "data_quality": {"confidence": "high"},
+    "forecast": {"provider": "Open-Meteo", "rain_mm_14d": 12.0},
+}
+
+
+def test_farm_rotation_and_simulate_endpoints(client, monkeypatch) -> None:
+    async def fake_analysis(farm: dict) -> dict:
+        return SAMPLE_ANALYSIS
+
+    monkeypatch.setattr(rotations_api.analysis_service, "build_analysis", fake_analysis)
+
+    created = client.post(
+        "/api/farms",
+        json={
+            "name": "Rotation endpoint farm",
+            "latitude": 13.34,
+            "longitude": 77.1,
+            "current_crop": "maize",
+            "soil_ph": 6.4,
+            "priority": "water",
+        },
+    )
+    assert created.status_code == 201, created.text
+    farm_id = created.json()["id"]
+
+    ranked = client.post(f"/api/farms/{farm_id}/rotations", json={})
+    assert ranked.status_code == 200, ranked.text
+    body = ranked.json()
+    assert body["farm_id"] == farm_id
+    assert body["analysis_summary"]["data_source"] == "NASA POWER"
+    assert 3 <= len(body["rotations"]) <= 5
+    assert body["rotations"][0]["rank"] == 1
+
+    simulated = client.post(f"/api/farms/{farm_id}/simulate", json={"rainfall_change_pct": -25})
+    assert simulated.status_code == 200, simulated.text
+    assert simulated.json()["deltas"]
+    assert simulated.json()["interpretation"]
+
+    empty = client.post(f"/api/farms/{farm_id}/simulate", json={})
+    assert empty.status_code == 422

@@ -90,8 +90,8 @@ $env:PYTHONPATH="$PWD\backend"
 python -m pytest backend\tests -q
 ```
 
-19 tests cover the climate analysis, the rotation engine's scoring and feasibility guards,
-and the HTTP API. They do not call live providers.
+28 tests cover the climate analysis, the rotation engine's scoring and feasibility guards,
+the date/input coercion layer, and the HTTP API. They do not call live providers.
 
 ---
 
@@ -204,6 +204,7 @@ and cool-season cereals are not proposed as drought options in warm climates.
 | `GET` | `/api/farms/{id}/satellite` | GIBS layers and NDVI status |
 | `POST` | `/api/farms/{id}/rotations` | Ranked rotations |
 | `POST` | `/api/farms/{id}/simulate` | What-if scenario |
+| `POST` | `/api/rotation/score` | Score one sequence without a farm record (alias: `/api/rotations/score`) |
 | `GET` | `/api/farms/{id}/report?format=json` | Full report JSON |
 | `GET` | `/api/farms/{id}/report` | Print-ready HTML report |
 | `POST` | `/api/cache/clear` | Clear the response cache |

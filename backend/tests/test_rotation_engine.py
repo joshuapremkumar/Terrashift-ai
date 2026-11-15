@@ -116,3 +116,35 @@ def test_unknown_crop_round_trip_raises() -> None:
     assert [item["score"] for item in replay["rotations"]] == sorted(
         [item["score"] for item in replay["rotations"]], reverse=True
     )
+
+
+def test_start_date_accepts_iso_string() -> None:
+    as_string = rotation_engine.evaluate(make_context(start_date="2026-11-01"))
+    as_date = rotation_engine.evaluate(make_context(start_date=date(2026, 11, 1)))
+    assert as_string["context"]["start_date"] == "2026-11-01"
+    assert [item["score"] for item in as_string["rotations"]] == [
+        item["score"] for item in as_date["rotations"]
+    ]
+
+
+def test_string_month_keys_are_coerced() -> None:
+    monthly = {str(month): value for month, value in make_context()["monthly_rain"].items()}
+    result = rotation_engine.evaluate(make_context(start_date="2026-06-01", monthly_rain=monthly))
+    assert result["rotations"]
+    planting = date.fromisoformat(result["rotations"][0]["schedule"][0]["planting"])
+    assert planting >= date(2026, 6, 1)
+
+
+def test_invalid_start_date_raises_value_error() -> None:
+    with pytest.raises(ValueError):
+        rotation_engine.evaluate(make_context(start_date="not-a-date"))
+
+
+def test_trade_offs_are_structured() -> None:
+    result = rotation_engine.evaluate(make_context())
+    for rotation in result["rotations"]:
+        trade_offs = rotation["trade_offs"]
+        assert set(trade_offs) == {"gains", "losses", "summary"}
+        assert isinstance(trade_offs["gains"], list)
+        assert isinstance(trade_offs["losses"], list)
+        assert trade_offs["summary"]

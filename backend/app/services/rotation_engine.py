@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import json
 from calendar import monthrange
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
 
@@ -112,6 +112,80 @@ def _clamp(value: float, low: float = 0.0, high: float = 100.0) -> float:
 
 
 # --------------------------------------------------------------------------
+# Input coercion
+# --------------------------------------------------------------------------
+
+_DATE_FORMATS = (
+    "%Y-%m-%d",
+    "%Y/%m/%d",
+    "%d-%m-%Y",
+    "%Y-%m-%dT%H:%M:%S",
+    "%Y-%m-%dT%H:%M:%S%z",
+    "%Y-%m-%d %H:%M:%S",
+)
+
+
+def parse_start_date(value: date | datetime | str | None = None, default: date | None = None) -> date:
+    """Coerce an ISO date/datetime string (e.g. ``"2026-06-01"``) into a ``date``.
+
+    Every calendar routine below relies on ``date.month``; accepting raw JSON
+    strings here is what keeps that contract true for callers that have not gone
+    through ``build_context``.
+    """
+    if value is None or value == "":
+        return default or date.today()
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        text = value.strip()
+        for fmt in _DATE_FORMATS:
+            try:
+                return datetime.strptime(text, fmt).date()
+            except ValueError:
+                continue
+        try:  # Handle offsets and other ISO-8601 variants as a last resort.
+            return datetime.fromisoformat(text.replace("Z", "+00:00")).date()
+        except ValueError as exc:
+            raise ValueError(
+                f"Invalid start_date {value!r}. Expected an ISO date such as 2026-06-01."
+            ) from exc
+    raise TypeError(f"start_date must be a date, datetime or ISO string, not {type(value).__name__}.")
+
+
+def _normalise_context(context: dict) -> dict:
+    """Return a shallow copy with a real ``date`` and integer month keys.
+
+    JSON clients send ``{"6": 120}``; the water accounting indexes by
+    ``cursor.month`` (an ``int``), so keys are coerced once at the boundary.
+    """
+    normalised = dict(context)
+    normalised["start_date"] = parse_start_date(context.get("start_date"))
+
+    monthly_rain = context.get("monthly_rain") or {}
+    if not isinstance(monthly_rain, dict):
+        raise TypeError("monthly_rain must be a mapping of month number to rainfall in mm.")
+    normalised["monthly_rain"] = {
+        int(month): float(value)
+        for month, value in monthly_rain.items()
+        if value is not None
+    }
+
+    monthly_temp = context.get("monthly_temp")
+    if monthly_temp is not None:
+        if not isinstance(monthly_temp, dict):
+            raise TypeError("monthly_temp must be a mapping of month number to temperature in °C.")
+        normalised["monthly_temp"] = {
+            int(month): float(value)
+            for month, value in monthly_temp.items()
+            if value is not None
+        }
+
+    return normalised
+
+
+# --------------------------------------------------------------------------
 # Calendar and water accounting
 # --------------------------------------------------------------------------
 
@@ -205,8 +279,8 @@ def rain_in_window(monthly_rain: dict[int, float], start: date, end: date) -> fl
     return total
 
 
-def build_schedule(sequence: list[dict], monthly_rain: dict[int, float], start: date) -> list[dict]:
-    cursor = _next_month_start(start)
+def build_schedule(sequence: list[dict], monthly_rain: dict[int, float], start: date | str) -> list[dict]:
+    cursor = _next_month_start(parse_start_date(start))
     schedule = []
     for crop in sequence:
         planting, calendar_match = _pick_planting_start(crop, cursor, monthly_rain)
@@ -638,8 +712,8 @@ def _compute_trade_offs(
         })
 
     # 4. Economic/Preference Trade-offs
-    pref_alignment = pref_detail.get("alignment", 0)
-    preferred_match = pref_detail.get("preferred_match", 0)
+    pref_alignment = float(pref_detail.get("alignment") or 0.0)
+    preferred_match = float(pref_detail.get("preferred_match") or 0.0)
     
     if pref_alignment > 70:
         gains.append({
@@ -722,6 +796,7 @@ def score_sequence(
     label: str | None = None,
     rotation_id: str | None = None,
 ) -> dict:
+    context = _normalise_context(context)
     schedule = build_schedule(sequence, context["monthly_rain"], context["start_date"])
     weights = context.get("weights") or WEIGHT_PRESETS[context.get("priority", "balanced")]
 
@@ -972,12 +1047,13 @@ def _temp_fit(crop: dict, mean_temp: float | None) -> bool:
 
 
 def generate_candidates(context: dict) -> list[dict]:
+    context = _normalise_context(context)
     catalog = load_catalog()["crops"]
     current = catalog.get(context.get("current_crop") or "maize") or catalog["maize"]
     mean_temp = context.get("mean_t2m_c")
     monthly_rain = context.get("monthly_rain") or {}
     monthly_temp = context.get("monthly_temp") or {}
-    start = context.get("start_date") or date.today()
+    start = context["start_date"]
     irrigation = context.get("irrigation", "rainfed")
 
     def window_fit(crop: dict) -> tuple[float, bool, bool]:
@@ -1175,7 +1251,7 @@ def generate_candidates(context: dict) -> list[dict]:
     return unique
 
 
-def build_context(farm: dict, analysis: dict, start_date: date | None = None) -> dict:
+def build_context(farm: dict, analysis: dict, start_date: date | str | None = None) -> dict:
     monthly = {
         int(entry["month"]): entry["rain_mm"]
         for entry in analysis.get("monthly_climatology", [])
@@ -1189,7 +1265,7 @@ def build_context(farm: dict, analysis: dict, start_date: date | None = None) ->
     baseline = analysis.get("baseline", {})
     forecast = analysis.get("forecast") or {}
     return {
-        "start_date": start_date or date.today(),
+        "start_date": parse_start_date(start_date),
         "monthly_rain": monthly,
         "monthly_temp": monthly_temp,
         "annual_rain_mm": baseline.get("annual_rain_mm"),
@@ -1215,6 +1291,7 @@ def build_context(farm: dict, analysis: dict, start_date: date | None = None) ->
 
 
 def evaluate(context: dict, custom_sequences: list[dict] | None = None) -> dict:
+    context = _normalise_context(context)
     catalog = load_catalog()["crops"]
     if custom_sequences:
         candidates = []
@@ -1293,13 +1370,14 @@ def simulate(context: dict, base_rotation_ids: list[str], changes: dict) -> dict
     The simulation changes declared inputs (rainfall, irrigation, priority), never
     the scoring rules. Deltas are differences between two deterministic runs.
     """
+    context = _normalise_context(context)
     before = evaluate(context)
 
     simulated = dict(context)
     if "rainfall_change_pct" in changes and changes["rainfall_change_pct"] is not None:
         factor = 1.0 + float(changes["rainfall_change_pct"]) / 100.0
         simulated["monthly_rain"] = {
-            month: (None if value is None else value * factor)
+            month: max(0.0, value * factor)
             for month, value in context["monthly_rain"].items()
         }
         simulated["rain_change_pct"] = changes["rainfall_change_pct"]

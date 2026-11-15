@@ -85,6 +85,8 @@ def health() -> dict:
 
 
 for module in (farm, weather, satellite, analysis, rotations, reports, meta):
+    # ``rotations`` owns /api/crops plus both /api/rotation/score and
+    # /api/rotations/score aliases, and is included exactly once here.
     app.include_router(module.router)
 
 if FRONTEND_DIR.exists():

@@ -35,3 +35,4 @@ rep.json
 rot*.json
 sim.json
 *.log
+.aider*
